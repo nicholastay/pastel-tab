@@ -1,122 +1,72 @@
-var col;
-var hex;
-var clip;
-var auto;
-var speed;
-var looping = false;
-var lightness = "95%";
+var lightness = 0.95; // HSL lightness for bright pastels
+var saturation = 1; // pastels are 100% saturated and we want bright
+var hue = Math.random(); // randomize color hue (degrees)
 
-$(document).ready(function() {
+var hex = hslToHex(hue, saturation, lightness); // translate to hex
+document.body.style.backgroundColor = hex; // set color
+document.getElementById('text').innerText = hex; // set text
 
-  //setup copy
-  clip = new Clipboard('#text');
+// copy on click
+var textElem = document.getElementById('text');
+textElem.addEventListener('click', function() {
+  var copy = document.getElementById('clock-copy');
+  copy.innerHTML = textElem.innerHTML;
+  copy.style.visibility = 'visible';
+  copy.focus();
+  copy.select();
 
-  changeColor();
-
-  //default values
-  auto = false;
-  speed = 3;
-
-  //setup stored variables
-  chrome.storage.sync.get('auto', function(data) {
-    auto = data.auto || auto;
-    updateButtons();
-  });
-
-  chrome.storage.sync.get('speed', function(data) {
-    speed = data.speed || speed;
-    updateButtons();
-  })
-
-  $('#gen').click(function(e) {
-    e.preventDefault();
-    if (!auto) {
-      if (!looping) {
-        changeColor(); //if it's on manual, just change
-      }
-    } else {
-      if (speed == 5) { //max speed value
-        speed = 0;
-      }
-      speed++;
-      setSpeedBars();
-      setValues();
-    }
-  });
-
-  $('#tog').click(function(e) {
-    e.preventDefault();
-    auto = !auto; //invert auto
-    setValues(); //save values to Chrome
-    updateButtons();
-  });
-
-  clip.on('success', function(e) { //on finish copy
-    $('#text').addClass('copied');
-  });
-
-  $('#clock-tog').click(function(e) {
-    e.preventDefault();
-    $('#clock').toggleClass('hide');
-  });
-
-  clock();
+  try {
+    document.execCommand('copy');
+    textElem.classList.add('copied');
+  } catch (e) {}
+  copy.style.visibility = 'hidden';
 });
 
-function clock() {
-  $('#clock').html(moment().format('h:mm A'));
-  setTimeout(function() { clock(); }, 500);
+// setup clock
+var clockElem = document.getElementById('clock');
+updateClock();
+setInterval(function() { updateClock(); }, 500);
+
+function updateClock() {
+  var d = new Date();
+  var h = d.getHours();
+  var m = d.getMinutes();
+  var s = d.getSeconds();
+  var ampm = h >= 12 ? '오후' : '오전';
+  h = h % 12; // 24 hr -> 12hr
+  h = (h === 0) ? 12 : h; // hour 0 we call 12
+
+  clockElem.innerHTML =
+    '<span class="ampm">' + ampm + '</span>'
+    + ' ' + h + ':' + m.toString().padStart(2, '0') + ':' + s.toString().padStart(2, '0');
 }
 
-function updateButtons() {
-  if (!auto) {
-    $('#auto-check').html('');
-    $('#gen').html('generate');
+
+// https://stackoverflow.com/a/44134328
+// h,s,l are in the set [0, 1]
+// (hue = degrees / 360)
+function hslToHex(h, s, l) {
+  let r, g, b;
+  if (s === 0) {
+    r = g = b = l; // achromatic
   } else {
-    $('#auto-check').html('check');
-
-    setSpeedBars();
-
-    //start loop
-    if (!looping) {
-      looping = true;
-      changeColor();
-    }
+    var hue2rgb = (p, q, t) => {
+      if (t < 0) t += 1;
+      if (t > 1) t -= 1;
+      if (t < 1 / 6) return p + (q - p) * 6 * t;
+      if (t < 1 / 2) return q;
+      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+      return p;
+    };
+    var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    var p = 2 * l - q;
+    r = hue2rgb(p, q, h + 1 / 3);
+    g = hue2rgb(p, q, h);
+    b = hue2rgb(p, q, h - 1 / 3);
   }
-}
-
-function setSpeedBars() {
-  var sbars = "|";
-  sbars = sbars.repeat(speed);
-  $('#gen').html('speed: ' + sbars);
-}
-
-function setValues() {
-  chrome.storage.sync.set({'auto': auto });
-  chrome.storage.sync.set({'speed': speed });
-}
-
-function changeColor() {
-  col = parseInt(Math.random() * 360); //randomize color
-
-  $('body').css('background-color', 'hsl(' + col + ', 100%, ' + lightness + ')'); //set color
-
-  hex = '#' + tinycolor('hsl(' + col + ', 100%, ' + lightness + ')').toHex(); //translate to hex
-  $('#text').html(hex); //set text
-  $('#text').removeClass('copied'); //clear ' - copied'
-
-  //auto-generate colors is option is enabled
-  if (auto) {
-    setTimeout(function() {
-
-      if (auto) {
-        changeColor();
-      } else {
-        looping = false;
-      }
-
-    }, (6 - speed)*1000);
-  } else {
-    looping = false;
-  }
+  var toHex = function(x){
+    var hex = Math.round(x * 255).toString(16);
+    return hex.length === 1 ? '0' + hex : hex;
+  };
+  return '#' + toHex(r) + toHex(g) + toHex(b);
 }

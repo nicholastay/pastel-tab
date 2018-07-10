@@ -32,7 +32,7 @@ function updateClock() {
   var h = d.getHours();
   var m = d.getMinutes();
   var s = d.getSeconds();
-  var ampm = h >= 12 ? '오후' : '오전';
+  var ampm = h >= 12 ? '&#xC624;&#xD6C4;' : '&#xC624;&#xC804;';
   h = h % 12; // 24 hr -> 12hr
   h = (h === 0) ? 12 : h; // hour 0 we call 12
 
